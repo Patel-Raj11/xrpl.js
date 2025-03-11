@@ -2,8 +2,10 @@ import globals from 'globals'
 import tsParser from '@typescript-eslint/parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import js from '@eslint/js'
 
 export default [
+  js.configs.recommended,
   {
     ignores: [
       '**/node_modules',
