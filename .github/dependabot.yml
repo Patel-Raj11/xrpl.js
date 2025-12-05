@@ -12,14 +12,3 @@ updates:
       - dependency-name: "*"
         update-types:
           ["version-update:semver-minor", "version-update:semver-major"]
-
-  - package-ecosystem: npm
-    directory: "/"
-    target-branch: "dependabot/minor-major-updates"
-    schedule:
-      interval: "cron"
-      cronjob: "*/5 * * * *"
-    open-pull-requests-limit: 10
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch"]
