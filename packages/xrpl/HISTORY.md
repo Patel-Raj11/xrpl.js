@@ -8,6 +8,7 @@ Subscribe to [the **xrpl-announce** mailing list](https://groups.google.com/g/xr
 
 ### Added
 * Add `ReferenceHolding` to `MPTokenIssuance` ledger object and `vault_info` response.
+* Support for `DynamicMPT` (XLS-0094). Adds `MutableFlags` to `MPTokenIssuanceCreate`, `MPTokenIssuanceSet`, and the `MPTokenIssuance` ledger object; permits `MPTokenIssuanceSet` to carry `MPTokenMetadata` and `TransferFee` replacements (with empty-blob / zero-value field-deletion semantics) in a new mutate mode mutually exclusive with the existing lock/unlock mode.
 
 ### Fixed
 * Add missing fields (`Sequence`, `DomainID`) to `MPTokenIssuance` ledger type, add missing fields (`VaultID` and `LoanBrokerID`) to `AccountRoot` ledger type and missing fields (`AssetScale`, `MaximumAmount`, `TransferFee`, `MPTokenMetadata`, `LockedAmount`) to `vault_info` response `shares` object. Fix incorrect optionality of `Flags`, `ShareMPTID`, `WithdrawalPolicy`, and `OwnerNode` in `VaultInfoResponse`.
