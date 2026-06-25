@@ -33,7 +33,7 @@
     "ws": "^8.20.0"
   },
   "devDependencies": {
-    "@types/node": "^18.18.38",
+    "@types/node": "^26.0.1",
     "@types/ws": "^8.18.1"
   },
   "repository": {
