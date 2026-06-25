@@ -23,7 +23,10 @@ import LedgerHashes from './LedgerHashes'
 import Loan, { LoanFlags } from './Loan'
 import LoanBroker from './LoanBroker'
 import { MPToken } from './MPToken'
-import { MPTokenIssuance } from './MPTokenIssuance'
+import {
+  MPTokenIssuance,
+  MPTokenIssuanceMutableFlags,
+} from './MPTokenIssuance'
 import NegativeUNL, { NEGATIVE_UNL_ID } from './NegativeUNL'
 import { NFTokenOffer } from './NFTokenOffer'
 import { NFToken, NFTokenPage } from './NFTokenPage'
@@ -68,6 +71,7 @@ export {
   NEGATIVE_UNL_ID,
   NegativeUNL,
   MPTokenIssuance,
+  MPTokenIssuanceMutableFlags,
   MPToken,
   NFTokenOffer,
   NFTokenPage,

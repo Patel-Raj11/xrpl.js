@@ -52,7 +52,10 @@ import type {
   OnEventToListenerMap,
 } from '../models/methods/subscribe'
 import type { SubmittableTransaction } from '../models/transactions'
-import { convertTxFlagsToNumber } from '../models/utils/flags'
+import {
+  convertTxFlagsToNumber,
+  convertTxMutableFlagsToNumber,
+} from '../models/utils/flags'
 import {
   ensureClassicAddress,
   submitRequest,
@@ -696,6 +699,11 @@ class Client extends EventEmitter<EventTypes> {
 
     setValidAddresses(tx)
     tx.Flags = convertTxFlagsToNumber(tx)
+    const numericMutableFlags = convertTxMutableFlagsToNumber(tx)
+    if (numericMutableFlags != null) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-explicit-any -- generic narrow
+      ;(tx as any).MutableFlags = numericMutableFlags
+    }
 
     const promises: Array<Promise<void>> = []
     tx.NetworkID ??= txNeedsNetworkID(this) ? this.networkID : undefined

@@ -2,7 +2,10 @@
 /* eslint-disable max-lines-per-function -- need to work with a lot of Tx verifications */
 
 import { ValidationError } from '../../errors'
-import { convertTxFlagsToNumber } from '../utils/flags'
+import {
+  convertTxFlagsToNumber,
+  convertTxMutableFlagsToNumber,
+} from '../utils/flags'
 
 import { AccountDelete, validateAccountDelete } from './accountDelete'
 import { AccountSet, validateAccountSet } from './accountSet'
@@ -280,6 +283,13 @@ export function validate(transaction: Record<string, unknown>): void {
 
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- okay here
   tx.Flags = convertTxFlagsToNumber(tx as unknown as Transaction)
+  const numericMutableFlags = convertTxMutableFlagsToNumber(
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- okay here
+    tx as unknown as Transaction,
+  )
+  if (numericMutableFlags != null) {
+    tx.MutableFlags = numericMutableFlags
+  }
   switch (tx.TransactionType) {
     case 'AMMBid':
       validateAMMBid(tx)

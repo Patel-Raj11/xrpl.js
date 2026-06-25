@@ -13,8 +13,16 @@ import { GlobalFlags } from '../transactions/common'
 import { LoanManageFlags } from '../transactions/loanManage'
 import { LoanPayFlags } from '../transactions/loanPay'
 import { MPTokenAuthorizeFlags } from '../transactions/MPTokenAuthorize'
-import { MPTokenIssuanceCreateFlags } from '../transactions/MPTokenIssuanceCreate'
-import { MPTokenIssuanceSetFlags } from '../transactions/MPTokenIssuanceSet'
+import {
+  MPTokenIssuanceCreateFlags,
+  MPTokenIssuanceCreateMutableFlags,
+  MPTokenIssuanceCreateMutableFlagsInterface,
+} from '../transactions/MPTokenIssuanceCreate'
+import {
+  MPTokenIssuanceSetFlags,
+  MPTokenIssuanceSetMutableFlags,
+  MPTokenIssuanceSetMutableFlagsInterface,
+} from '../transactions/MPTokenIssuanceSet'
 import { NFTokenCreateOfferFlags } from '../transactions/NFTokenCreateOffer'
 import { NFTokenMintFlags } from '../transactions/NFTokenMint'
 import { OfferCreateFlags } from '../transactions/offerCreate'
@@ -135,6 +143,58 @@ export function convertTxFlagsToNumber(tx: Transaction): number {
     }
 
     return txFlags[flag] ? resultFlags | GlobalFlags[flag] : resultFlags
+  }, 0)
+}
+
+const txToMutableFlag = {
+  MPTokenIssuanceCreate: MPTokenIssuanceCreateMutableFlags,
+  MPTokenIssuanceSet: MPTokenIssuanceSetMutableFlags,
+}
+
+function isTxToMutableFlagKey(
+  transactionType: string,
+): transactionType is keyof typeof txToMutableFlag {
+  return transactionType in txToMutableFlag
+}
+
+/**
+ * Returns a Transaction's MutableFlags as its numeric representation.
+ * Returns the input unchanged when MutableFlags is absent or already a
+ * number. Throws ValidationError when an unknown member is supplied.
+ *
+ * @param tx - A Transaction whose MutableFlags should be resolved.
+ * @returns The numeric MutableFlags, or undefined when absent.
+ */
+export function convertTxMutableFlagsToNumber(
+  tx: Transaction,
+): number | undefined {
+  const mutableFlags = (
+    tx as unknown as {
+      MutableFlags?:
+        | number
+        | MPTokenIssuanceCreateMutableFlagsInterface
+        | MPTokenIssuanceSetMutableFlagsInterface
+    }
+  ).MutableFlags
+  if (mutableFlags == null) {
+    return undefined
+  }
+  if (typeof mutableFlags === 'number') {
+    return mutableFlags
+  }
+  if (!isTxToMutableFlagKey(tx.TransactionType)) {
+    return undefined
+  }
+  const flagEnum = txToMutableFlag[tx.TransactionType]
+  return Object.keys(mutableFlags).reduce((acc, flag) => {
+    const bit = (flagEnum as Record<string, number | string>)[flag]
+    if (bit == null || typeof bit !== 'number') {
+      throw new ValidationError(`Invalid MutableFlags member ${flag}.`)
+    }
+    return (mutableFlags as Record<string, boolean | undefined>)[flag]
+      ? // eslint-disable-next-line no-bitwise -- bitmask combine
+        acc | bit
+      : acc
   }, 0)
 }
 
