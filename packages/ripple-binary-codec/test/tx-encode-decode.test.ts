@@ -72,6 +72,51 @@ describe('encoding and decoding tx_json', function () {
     const decoded = decode(encoded)
     expect(expectedTx).toEqual(decoded)
   })
+  it('round-trips an MPTokenIssuanceCreate with MutableFlags (DynamicMPT)', function () {
+    const my_tx = {
+      Account: 'r9LqNeG6qHxjeUocjvVki2XR35weJ9mZgQ',
+      TransactionType: 'MPTokenIssuanceCreate',
+      Sequence: 1,
+      Fee: '10',
+      Flags: 0x00000020, // tfMPTCanTransfer
+      MutableFlags: 0x00010020, // tmfMPTCanEnableCanTransfer | tmfMPTCanMutateMetadata
+      MPTokenMetadata: '414243',
+    }
+    const encoded = encode(my_tx)
+    const decoded = decode(encoded)
+    expect(my_tx).toEqual(decoded)
+  })
+  it('round-trips an MPTokenIssuanceSet in mutate mode (DynamicMPT)', function () {
+    const my_tx = {
+      Account: 'r9LqNeG6qHxjeUocjvVki2XR35weJ9mZgQ',
+      TransactionType: 'MPTokenIssuanceSet',
+      Sequence: 2,
+      Fee: '10',
+      Flags: 0,
+      MPTokenIssuanceID: '00000004C463C52827307480341125DA0577DEFC38405B0E',
+      MutableFlags: 0x00000004, // tmfMPTSetCanEscrow
+      MPTokenMetadata: 'AB',
+      TransferFee: 100,
+    }
+    const encoded = encode(my_tx)
+    const decoded = decode(encoded)
+    expect(my_tx).toEqual(decoded)
+  })
+  it('round-trips an MPTokenIssuanceSet that clears MPTokenMetadata (empty blob)', function () {
+    // Empty blob signals metadata deletion on-ledger.
+    const my_tx = {
+      Account: 'r9LqNeG6qHxjeUocjvVki2XR35weJ9mZgQ',
+      TransactionType: 'MPTokenIssuanceSet',
+      Sequence: 3,
+      Fee: '10',
+      Flags: 0,
+      MPTokenIssuanceID: '00000004C463C52827307480341125DA0577DEFC38405B0E',
+      MPTokenMetadata: '',
+    }
+    const encoded = encode(my_tx)
+    const decoded = decode(encoded)
+    expect(my_tx).toEqual(decoded)
+  })
   it('throws when Amount is invalid', function () {
     const my_tx = Object.assign({}, tx_json, {
       Amount: '1000.001',

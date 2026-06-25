@@ -1,6 +1,10 @@
 import { stringToHex } from '@xrplf/isomorphic/src/utils'
 
-import { MPTokenIssuanceCreateFlags, MPTokenMetadata } from '../../src'
+import {
+  MPTokenIssuanceCreateFlags,
+  MPTokenIssuanceCreateMutableFlags,
+  MPTokenMetadata,
+} from '../../src'
 import { validateMPTokenIssuanceCreate } from '../../src/models/transactions/MPTokenIssuanceCreate'
 import {
   MAX_MPT_META_BYTE_LENGTH,
@@ -140,6 +144,74 @@ describe('MPTokenIssuanceCreate', function () {
       invalid,
       'MPTokenIssuanceCreate: TransferFee cannot be provided without enabling tfMPTCanTransfer flag',
     )
+  })
+
+  it(`verifies valid MutableFlags (numeric and interface)`, function () {
+    const numeric = {
+      TransactionType: 'MPTokenIssuanceCreate',
+      Account: 'rWYkbWkCeg8dP6rXALnjgZSjjLyih5NXm',
+      MutableFlags:
+        MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanLock |
+        MPTokenIssuanceCreateMutableFlags.tmfMPTCanMutateMetadata,
+    } as any
+    assertValid(numeric)
+
+    const interfaceForm = {
+      TransactionType: 'MPTokenIssuanceCreate',
+      Account: 'rWYkbWkCeg8dP6rXALnjgZSjjLyih5NXm',
+      MutableFlags: {
+        tmfMPTCanEnableCanLock: true,
+        tmfMPTCanMutateMetadata: true,
+      },
+    } as any
+    assertValid(interfaceForm)
+  })
+
+  it(`throws w/ MutableFlags = 0`, function () {
+    const invalid = {
+      TransactionType: 'MPTokenIssuanceCreate',
+      Account: 'rWYkbWkCeg8dP6rXALnjgZSjjLyih5NXm',
+      MutableFlags: 0,
+    } as any
+    assertInvalid(invalid, 'MPTokenIssuanceCreate: invalid field MutableFlags')
+  })
+
+  it(`throws w/ MutableFlags containing out-of-mask bit`, function () {
+    // 0x00000001 (tmfMPTSetCanLock) is set-side, not valid on create
+    const invalid = {
+      TransactionType: 'MPTokenIssuanceCreate',
+      Account: 'rWYkbWkCeg8dP6rXALnjgZSjjLyih5NXm',
+      MutableFlags: 0x00000001,
+    } as any
+    assertInvalid(invalid, 'MPTokenIssuanceCreate: invalid field MutableFlags')
+  })
+
+  it(`throws w/ MutableFlags containing arbitrary high bit`, function () {
+    const invalid = {
+      TransactionType: 'MPTokenIssuanceCreate',
+      Account: 'rWYkbWkCeg8dP6rXALnjgZSjjLyih5NXm',
+      MutableFlags:
+        MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanLock | 0x40000000,
+    } as any
+    assertInvalid(invalid, 'MPTokenIssuanceCreate: invalid field MutableFlags')
+  })
+
+  it(`accepts MutableFlags carrying every valid create-side bit`, function () {
+    const allBits =
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanLock |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableRequireAuth |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanEscrow |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanTrade |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanTransfer |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanClawback |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanMutateMetadata |
+      MPTokenIssuanceCreateMutableFlags.tmfMPTCanMutateTransferFee
+    const tx = {
+      TransactionType: 'MPTokenIssuanceCreate',
+      Account: 'rWYkbWkCeg8dP6rXALnjgZSjjLyih5NXm',
+      MutableFlags: allBits,
+    } as any
+    assertValid(tx)
   })
 })
 
