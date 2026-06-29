@@ -77,7 +77,7 @@ describe('STNumber', function () {
   it('throws when constructed from an invalid type', function () {
     // @ts-expect-error -- intentionally passing an invalid type
     expect(() => STNumber.from({})).toThrow(
-      'Invalid type to construct a Number',
+      new Error('Invalid type to construct a Number'),
     )
   })
 })

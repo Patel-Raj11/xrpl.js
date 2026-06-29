@@ -98,7 +98,10 @@ describe('VaultCreate', function () {
 
   it('throws w/ a Data field that is too long', function () {
     tx.Data = 'AB'.repeat(257)
-    assertInvalid(tx, 'VaultCreate: Data length must be between 1 and 256 bytes')
+    assertInvalid(
+      tx,
+      'VaultCreate: Data length must be between 1 and 256 bytes',
+    )
   })
 
   it('throws w/ an unsupported WithdrawalPolicy', function () {

@@ -28,7 +28,8 @@ const MAX_EXPONENT = 32768
 // rippled `Number::mantissaLog()` for the large scale.
 const RANGE_LOG = 18
 
-const NUMBER_REGEX = /^([-+]?)(\d+)(?:\.(\d+))?(?:[eE]([-+]?\d+))?$/
+const NUMBER_REGEX =
+  /^(?<sign>[-+]?)(?<int>\d+)(?:\.(?<fraction>\d+))?(?:[eE](?<exp>[-+]?\d+))?$/u
 
 interface NumberParts {
   negative: boolean
@@ -42,20 +43,31 @@ interface NumberParts {
  * exponent, following rippled's `partsFromString`.
  */
 function partsFromString(value: string): NumberParts {
-  const match = NUMBER_REGEX.exec(value.trim())
-  if (match === null) {
+  const groups = NUMBER_REGEX.exec(value.trim())?.groups
+  if (groups == null) {
     throw new Error(`${value} is not a valid Number`)
   }
 
-  // match[2] = integer digits, match[3] = fraction digits, match[4] = exponent.
-  const negative = match[1] === '-'
-  const fraction = match[3] ?? ''
-  const expPart = match[4] === undefined ? 0 : Number(match[4])
+  const negative = groups.sign === '-'
+  const fraction = groups.fraction ?? ''
+  const expPart = groups.exp === undefined ? 0 : Number(groups.exp)
 
-  const mantissa = BigInt(match[2] + fraction)
+  const mantissa = BigInt(groups.int + fraction)
   const exponent = expPart - fraction.length
 
   return { negative, mantissa, exponent }
+}
+
+/**
+ * Drop the least-significant digit of `mantissa`, rounding half-to-even
+ * (rippled's default ToNearest rounding mode).
+ */
+function roundDropDigit(mantissa: bigint): bigint {
+  const remainder = mantissa % TEN
+  const quotient = mantissa / TEN
+  const roundUp =
+    remainder > FIVE || (remainder === FIVE && quotient % TWO === ONE)
+  return roundUp ? quotient + ONE : quotient
 }
 
 /**
@@ -85,12 +97,7 @@ function normalizeToInternal(parts: NumberParts): {
     if (exponent >= MAX_EXPONENT) {
       throw new Error('Number overflow during normalization')
     }
-    // Round half to even when dropping a digit (rippled default ToNearest).
-    const remainder = mantissa % TEN
-    mantissa /= TEN
-    if (remainder > FIVE || (remainder === FIVE && mantissa % TWO === ONE)) {
-      mantissa += ONE
-    }
+    mantissa = roundDropDigit(mantissa)
     exponent += 1
   }
 
@@ -99,6 +106,24 @@ function normalizeToInternal(parts: NumberParts): {
   }
 
   return { mantissa, exponent, negative }
+}
+
+/**
+ * Render a value in scientific notation, trimming trailing zeros from the
+ * mantissa (rippled's `to_string` for out-of-window exponents).
+ */
+function toScientific(
+  sign: string,
+  mantissa: bigint,
+  exponent: number,
+): string {
+  let m = mantissa
+  let e = exponent
+  while (m % TEN === ZERO && e < MAX_EXPONENT) {
+    m /= TEN
+    e += 1
+  }
+  return `${sign}${m.toString()}e${e.toString()}`
 }
 
 /**
@@ -121,13 +146,7 @@ function internalToString(
     exponent !== 0 &&
     (exponent < -(RANGE_LOG + 10) || exponent > -(RANGE_LOG - 10))
   ) {
-    let m = mantissa
-    let e = exponent
-    while (m % TEN === ZERO && e < MAX_EXPONENT) {
-      m /= TEN
-      e += 1
-    }
-    return `${sign}${m.toString()}e${e.toString()}`
+    return toScientific(sign, mantissa, exponent)
   }
 
   const digits = mantissa.toString()

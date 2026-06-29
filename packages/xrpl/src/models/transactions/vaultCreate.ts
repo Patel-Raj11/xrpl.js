@@ -83,12 +83,78 @@ export interface VaultCreate extends BaseTransaction {
 }
 
 /**
+ * Validate the optional MPTokenMetadata field: it must be a hex string within
+ * the share MPT metadata byte-length bounds.
+ *
+ * @param tx - A VaultCreate Transaction.
+ * @throws When MPTokenMetadata is malformed.
+ */
+function validateMPTokenMetadata(tx: Record<string, unknown>): void {
+  if (typeof tx.MPTokenMetadata !== 'string') {
+    return
+  }
+  if (!isHex(tx.MPTokenMetadata)) {
+    throw new ValidationError(
+      'VaultCreate: MPTokenMetadata must be a valid hex string',
+    )
+  }
+  const byteLength = tx.MPTokenMetadata.length / 2
+  if (byteLength < 1 || byteLength > MAX_MPTOKEN_METADATA_BYTE_LENGTH) {
+    throw new ValidationError(
+      `VaultCreate: MPTokenMetadata length must be between 1 and ${MAX_MPTOKEN_METADATA_BYTE_LENGTH} bytes`,
+    )
+  }
+}
+
+/**
+ * Validate the optional Data field: it must be a hex string within the vault
+ * metadata byte-length bounds.
+ *
+ * @param tx - A VaultCreate Transaction.
+ * @throws When Data is malformed.
+ */
+function validateVaultData(tx: Record<string, unknown>): void {
+  if (typeof tx.Data !== 'string') {
+    return
+  }
+  if (!isHex(tx.Data)) {
+    throw new ValidationError('VaultCreate: Data must be a valid hex string')
+  }
+  const byteLength = tx.Data.length / 2
+  if (byteLength < 1 || byteLength > VAULT_DATA_MAX_BYTE_LENGTH) {
+    throw new ValidationError(
+      `VaultCreate: Data length must be between 1 and ${VAULT_DATA_MAX_BYTE_LENGTH} bytes`,
+    )
+  }
+}
+
+/**
+ * Validate the optional DomainID field: it is only allowed on a private vault
+ * and must not be the zero hash.
+ *
+ * @param tx - A VaultCreate Transaction.
+ * @throws When DomainID is malformed or used on a non-private vault.
+ */
+function validateVaultCreateDomainID(tx: Record<string, unknown>): void {
+  if (typeof tx.DomainID !== 'string') {
+    return
+  }
+  if (!hasFlag(tx, VaultCreateFlags.tfVaultPrivate, 'tfVaultPrivate')) {
+    throw new ValidationError(
+      'VaultCreate: DomainID can only be set on a private vault (tfVaultPrivate)',
+    )
+  }
+  if (/^0+$/u.test(tx.DomainID)) {
+    throw new ValidationError('VaultCreate: DomainID must not be zero')
+  }
+}
+
+/**
  * Verify the form and type of a VaultCreate at runtime.
  *
  * @param tx - A VaultCreate Transaction.
  * @throws When the VaultCreate is malformed.
  */
-// eslint-disable-next-line max-lines-per-function -- single transaction validator
 export function validateVaultCreate(tx: Record<string, unknown>): void {
   validateBaseTransaction(tx)
 
@@ -99,7 +165,10 @@ export function validateVaultCreate(tx: Record<string, unknown>): void {
   validateOptionalField(tx, 'WithdrawalPolicy', isNumber)
   validateOptionalField(tx, 'Data', isString)
 
-  if (typeof tx.Flags === 'number' && (tx.Flags & ~VAULT_CREATE_VALID_FLAGS) !== 0) {
+  if (
+    typeof tx.Flags === 'number' &&
+    (tx.Flags & ~VAULT_CREATE_VALID_FLAGS) !== 0
+  ) {
     throw new ValidationError(
       'VaultCreate: invalid flags, only tfVaultPrivate and tfVaultShareNonTransferable are allowed',
     )
@@ -107,32 +176,6 @@ export function validateVaultCreate(tx: Record<string, unknown>): void {
 
   if (tx.AssetsMaximum !== undefined && Number(tx.AssetsMaximum) < 0) {
     throw new ValidationError('VaultCreate: AssetsMaximum must not be negative')
-  }
-
-  if (typeof tx.MPTokenMetadata === 'string') {
-    if (!isHex(tx.MPTokenMetadata)) {
-      throw new ValidationError(
-        'VaultCreate: MPTokenMetadata must be a valid hex string',
-      )
-    }
-    const byteLength = tx.MPTokenMetadata.length / 2
-    if (byteLength < 1 || byteLength > MAX_MPTOKEN_METADATA_BYTE_LENGTH) {
-      throw new ValidationError(
-        `VaultCreate: MPTokenMetadata length must be between 1 and ${MAX_MPTOKEN_METADATA_BYTE_LENGTH} bytes`,
-      )
-    }
-  }
-
-  if (typeof tx.Data === 'string') {
-    if (!isHex(tx.Data)) {
-      throw new ValidationError('VaultCreate: Data must be a valid hex string')
-    }
-    const byteLength = tx.Data.length / 2
-    if (byteLength < 1 || byteLength > VAULT_DATA_MAX_BYTE_LENGTH) {
-      throw new ValidationError(
-        `VaultCreate: Data length must be between 1 and ${VAULT_DATA_MAX_BYTE_LENGTH} bytes`,
-      )
-    }
   }
 
   if (
@@ -144,14 +187,7 @@ export function validateVaultCreate(tx: Record<string, unknown>): void {
     )
   }
 
-  if (typeof tx.DomainID === 'string') {
-    if (!hasFlag(tx, VaultCreateFlags.tfVaultPrivate, 'tfVaultPrivate')) {
-      throw new ValidationError(
-        'VaultCreate: DomainID can only be set on a private vault (tfVaultPrivate)',
-      )
-    }
-    if (/^0+$/u.test(tx.DomainID)) {
-      throw new ValidationError('VaultCreate: DomainID must not be zero')
-    }
-  }
+  validateMPTokenMetadata(tx)
+  validateVaultData(tx)
+  validateVaultCreateDomainID(tx)
 }

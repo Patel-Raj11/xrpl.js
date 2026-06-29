@@ -1,7 +1,8 @@
 import { validateVaultWithdraw } from '../../src/models/transactions/vaultWithdraw'
 import { assertTxIsValid, assertTxValidationError } from '../testUtils'
 
-const assertValid = (tx: any): void => assertTxIsValid(tx, validateVaultWithdraw)
+const assertValid = (tx: any): void =>
+  assertTxIsValid(tx, validateVaultWithdraw)
 const assertInvalid = (tx: any, message: string): void =>
   assertTxValidationError(tx, validateVaultWithdraw, message)
 

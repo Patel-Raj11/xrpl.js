@@ -27,6 +27,45 @@ import { generateFundedWallet, testTransaction } from '../utils'
 // how long before each test case times out
 const TIMEOUT = 60000
 
+/**
+ * Verify a freshly created vault is discoverable through hashVault, the
+ * ledger_entry `vault` selector (by ID and by owner/seq), and vault_info.
+ *
+ * @param testContext - The integration test context (client and wallet).
+ * @param vault - The Vault ledger object returned from account_objects.
+ */
+async function verifyVaultLookups(
+  testContext: XrplIntegrationTestContext,
+  vault: Vault,
+): Promise<void> {
+  const { client, wallet } = testContext
+  const vaultId = vault.index
+
+  // The hashVault helper must reproduce the server-assigned object ID.
+  assert.equal(hashVault(vault.Owner, vault.Sequence), vaultId)
+
+  // Look the vault up through the ledger_entry `vault` selector, both by
+  // object ID and by owner/seq.
+  const byId = await client.request({
+    command: 'ledger_entry',
+    vault: vaultId,
+  })
+  assert.equal(byId.result.node?.index, vaultId)
+  const byOwnerSeq = await client.request({
+    command: 'ledger_entry',
+    vault: { owner: wallet.classicAddress, seq: vault.Sequence },
+  })
+  assert.equal(byOwnerSeq.result.node?.index, vaultId)
+
+  // Query vault_info and confirm the bundled share issuance.
+  const info = await client.request({
+    command: 'vault_info',
+    vault_id: vaultId,
+  })
+  assert.equal(info.result.vault.index, vaultId)
+  assert.equal(info.result.vault.shares.mpt_issuance_id, vault.ShareMPTID)
+}
+
 describe('Vault', function () {
   let testContext: XrplIntegrationTestContext
 
@@ -61,29 +100,9 @@ describe('Vault', function () {
       assert.equal(vault.Owner, wallet.classicAddress)
       const vaultId = vault.index
 
-      // The hashVault helper must reproduce the server-assigned object ID.
-      assert.equal(hashVault(vault.Owner, vault.Sequence), vaultId)
-
-      // Step 3: look the vault up through the ledger_entry `vault` selector,
-      // both by object ID and by owner/seq.
-      const byId = await client.request({
-        command: 'ledger_entry',
-        vault: vaultId,
-      })
-      assert.equal(byId.result.node?.index, vaultId)
-      const byOwnerSeq = await client.request({
-        command: 'ledger_entry',
-        vault: { owner: wallet.classicAddress, seq: vault.Sequence },
-      })
-      assert.equal(byOwnerSeq.result.node?.index, vaultId)
-
-      // Step 4: query vault_info and confirm the bundled share issuance.
-      const info = await client.request({
-        command: 'vault_info',
-        vault_id: vaultId,
-      })
-      assert.equal(info.result.vault.index, vaultId)
-      assert.equal(info.result.vault.shares.mpt_issuance_id, vault.ShareMPTID)
+      // Steps 3 & 4: confirm the vault is discoverable via hashVault, the
+      // ledger_entry `vault` selector, and vault_info.
+      await verifyVaultLookups(testContext, vault)
 
       // Step 5: deposit assets and confirm the totals grow.
       const deposit: VaultDeposit = {

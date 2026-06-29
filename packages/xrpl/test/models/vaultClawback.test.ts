@@ -1,7 +1,8 @@
 import { validateVaultClawback } from '../../src/models/transactions/vaultClawback'
 import { assertTxIsValid, assertTxValidationError } from '../testUtils'
 
-const assertValid = (tx: any): void => assertTxIsValid(tx, validateVaultClawback)
+const assertValid = (tx: any): void =>
+  assertTxIsValid(tx, validateVaultClawback)
 const assertInvalid = (tx: any, message: string): void =>
   assertTxValidationError(tx, validateVaultClawback, message)
 
