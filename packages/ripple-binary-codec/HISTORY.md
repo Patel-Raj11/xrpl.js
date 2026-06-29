@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 2.5.1 (2025-10-29)
+
+### Fixed
+* Fix serialization/deserialization issues in `Issue` serialized type for MPTIssue.
+
+## 2.5.0 (2025-07-29)
+
+### Added
+* Support for `Single Asset Vault` (XLS-65)
+* Adds new `STNumber` serialization type.
+
 ## 2.4.1 (2025-6-18)
 
 ### Fixed
