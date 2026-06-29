@@ -10,4 +10,9 @@ export interface MPTokenIssuance extends BaseLedgerEntry, HasPreviousTxnID {
   TransferFee?: number
   MPTokenMetadata?: string
   OwnerNode?: string
+  /**
+   * The permissioned domain that restricts which accounts may hold
+   * this issuance's tokens.
+   */
+  DomainID?: string
 }

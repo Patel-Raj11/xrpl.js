@@ -78,6 +78,11 @@ export default interface AccountRoot extends BaseLedgerEntry, HasPreviousTxnID {
   MintedNFTokens?: number
   /** Another account that can mint NFTokens on behalf of this account. */
   NFTokenMinter?: string
+  /**
+   * Present on a vault's pseudo-account; references the Vault ledger
+   * entry that this pseudo-account backs.
+   */
+  VaultID?: string
 }
 
 /**
