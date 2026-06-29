@@ -1,4 +1,9 @@
-export { BaseTransaction, isMPTAmount } from './common'
+export {
+  BaseTransaction,
+  GlobalFlags,
+  GlobalFlagsInterface,
+  isMPTAmount,
+} from './common'
 export {
   validate,
   PseudoTransaction,
@@ -33,7 +38,7 @@ export {
   AMMWithdrawFlagsInterface,
   AMMWithdraw,
 } from './AMMWithdraw'
-export { Batch } from './batch'
+export { Batch, BatchFlags, BatchFlagsInterface, BatchSigner } from './batch'
 export { CheckCancel } from './checkCancel'
 export { CheckCash } from './checkCash'
 export { CheckCreate } from './checkCreate'
@@ -95,14 +100,25 @@ export {
 } from './paymentChannelClaim'
 export { PaymentChannelCreate } from './paymentChannelCreate'
 export { PaymentChannelFund } from './paymentChannelFund'
+export { PermissionedDomainSet } from './permissionedDomainSet'
+export { PermissionedDomainDelete } from './permissionedDomainDelete'
 export { SetFee, SetFeePreAmendment, SetFeePostAmendment } from './setFee'
 export { SetRegularKey } from './setRegularKey'
 export { SignerListSet } from './signerListSet'
 export { TicketCreate } from './ticketCreate'
 export { TrustSetFlagsInterface, TrustSetFlags, TrustSet } from './trustSet'
 export { UNLModify } from './UNLModify'
-export { PermissionedDomainSet } from './permissionedDomainSet'
-export { PermissionedDomainDelete } from './permissionedDomainDelete'
+export { VaultClawback } from './vaultClawback'
+export {
+  VaultCreate,
+  VaultCreateFlags,
+  VaultCreateFlagsInterface,
+  VaultWithdrawalPolicy,
+} from './vaultCreate'
+export { VaultDelete } from './vaultDelete'
+export { VaultDeposit } from './vaultDeposit'
+export { VaultSet } from './vaultSet'
+export { VaultWithdraw } from './vaultWithdraw'
 export { XChainAddAccountCreateAttestation } from './XChainAddAccountCreateAttestation'
 export { XChainAddClaimAttestation } from './XChainAddClaimAttestation'
 export { XChainClaim } from './XChainClaim'
