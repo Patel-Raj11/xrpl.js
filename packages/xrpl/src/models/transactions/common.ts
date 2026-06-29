@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- common utility file */
+
 import { HEX_REGEX } from '@xrplf/isomorphic/utils'
 import { isValidClassicAddress, isValidXAddress } from 'ripple-address-codec'
 import { TRANSACTION_TYPES } from 'ripple-binary-codec'
@@ -7,6 +8,7 @@ import { ValidationError } from '../../errors'
 import {
   Amount,
   AuthorizeCredential,
+  ClawbackAmount,
   Currency,
   IssuedCurrency,
   IssuedCurrencyAmount,
@@ -21,6 +23,9 @@ const MEMO_SIZE = 3
 export const MAX_AUTHORIZED_CREDENTIALS = 8
 const MAX_CREDENTIAL_BYTE_LENGTH = 64
 const MAX_CREDENTIAL_TYPE_LENGTH = MAX_CREDENTIAL_BYTE_LENGTH * 2
+
+// Used for Vault transactions
+export const VAULT_DATA_MAX_BYTE_LENGTH = 256
 
 function isMemo(obj: unknown): obj is Memo {
   if (!isRecord(obj)) {
@@ -70,11 +75,16 @@ function isSigner(obj: unknown): obj is Signer {
   )
 }
 
+// Currency object sizes
 const XRP_CURRENCY_SIZE = 1
-const ISSUE_SIZE = 2
-const ISSUED_CURRENCY_SIZE = 3
+const MPT_CURRENCY_SIZE = 1
+const ISSUE_CURRENCY_SIZE = 2
+
+// Currency Amount object sizes
+const MPT_CURRENCY_AMOUNT_SIZE = 2
+const ISSUED_CURRENCY_AMOUNT_SIZE = 3
+
 const XCHAIN_BRIDGE_SIZE = 4
-const MPTOKEN_SIZE = 2
 const AUTHORIZE_CREDENTIAL_SIZE = 1
 
 /**
@@ -108,13 +118,66 @@ export function isNumber(num: unknown): num is number {
 }
 
 /**
+ * Verify the form and type of a null value at runtime.
+ *
+ * @param inp - The value to check the form and type of.
+ * @returns Whether the value is properly formed.
+ */
+export function isNull(inp: unknown): inp is null {
+  return inp == null
+}
+
+/**
+ * Verify that a certain field has a certain exact value at runtime.
+ *
+ * @param value The value to compare against.
+ * @returns Whether the number is properly formed and within the bounds.
+ */
+export function isValue<V>(value: V): (inp: unknown) => inp is V {
+  // eslint-disable-next-line func-style -- returning a function
+  const isValueInternal = (inp: unknown): inp is V => inp === value
+  return isValueInternal
+}
+
+/**
+ * Checks whether the given value is a valid XRPL number string.
+ * Accepts integer, decimal, or scientific notation strings.
+ *
+ * Examples of valid input:
+ *   - "123"
+ *   - "-987.654"
+ *   - "+3.14e10"
+ *   - "-7.2e-9"
+ *
+ * @param value - The value to check.
+ * @returns True if value is a string that matches the XRPL number format, false otherwise.
+ */
+export function isXRPLNumber(value: unknown): value is XRPLNumber {
+  // Matches optional sign, digits, optional decimal, optional exponent (scientific)
+  // Allows leading zeros, but not empty string, lone sign, or missing digits
+  return (
+    typeof value === 'string' &&
+    /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$/u.test(value.trim())
+  )
+}
+
+/**
  * Verify the form and type of a Currency at runtime.
  *
  * @param input - The input to check the form and type of.
  * @returns Whether the Currency is properly formed.
  */
 export function isCurrency(input: unknown): input is Currency {
-  return isString(input) || isIssuedCurrency(input)
+  return (
+    isRecord(input) &&
+    ((Object.keys(input).length === ISSUE_CURRENCY_SIZE &&
+      isString(input.issuer) &&
+      isString(input.currency)) ||
+      (Object.keys(input).length === XRP_CURRENCY_SIZE &&
+        input.currency === 'XRP') ||
+      (Object.keys(input).length === MPT_CURRENCY_SIZE &&
+        isString(input.mpt_issuance_id)))
+  )
 }
 
 /**
@@ -126,7 +189,7 @@ export function isCurrency(input: unknown): input is Currency {
 export function isIssuedCurrency(input: unknown): input is IssuedCurrency {
   return (
     isRecord(input) &&
-    ((Object.keys(input).length === ISSUE_SIZE &&
+    ((Object.keys(input).length === ISSUE_CURRENCY_SIZE &&
       isString(input.issuer) &&
       isString(input.currency)) ||
       (Object.keys(input).length === XRP_CURRENCY_SIZE &&
@@ -145,7 +208,7 @@ export function isIssuedCurrencyAmount(
 ): input is IssuedCurrencyAmount {
   return (
     isRecord(input) &&
-    Object.keys(input).length === ISSUED_CURRENCY_SIZE &&
+    Object.keys(input).length === ISSUED_CURRENCY_AMOUNT_SIZE &&
     isString(input.value) &&
     isString(input.issuer) &&
     isString(input.currency)
@@ -179,16 +242,38 @@ export function isAuthorizeCredential(
 export function isMPTAmount(input: unknown): input is MPTAmount {
   return (
     isRecord(input) &&
-    Object.keys(input).length === MPTOKEN_SIZE &&
+    Object.keys(input).length === MPT_CURRENCY_AMOUNT_SIZE &&
     typeof input.value === 'string' &&
     typeof input.mpt_issuance_id === 'string'
   )
 }
 
 /**
+ * Type guard to verify if the input is a valid ClawbackAmount.
+ *
+ * A ClawbackAmount can be either an {@link IssuedCurrencyAmount} or an {@link MPTAmount}.
+ * This function checks if the input matches either type.
+ *
+ * @param input - The value to check for ClawbackAmount structure.
+ * @returns True if the input is an IssuedCurrencyAmount or MPTAmount, otherwise false.
+ */
+export function isClawbackAmount(input: unknown): input is ClawbackAmount {
+  return isIssuedCurrencyAmount(input) || isMPTAmount(input)
+}
+
+/**
  * Must be a valid account address
  */
 export type Account = string
+
+/**
+ * XRPL Number type represented as a string.
+ *
+ * This string can be an integer (e.g., "123"), a decimal (e.g., "123.45"),
+ * or in scientific notation (e.g., "1.23e5", "-4.56e-7").
+ * Used for fields that accept arbitrary-precision numbers in XRPL transactions and ledger objects.
+ */
+export type XRPLNumber = string
 
 /**
  * Verify a string is in fact a valid account address.
@@ -634,4 +719,21 @@ export function containsDuplicates(
   }
 
   return false
+}
+
+const _DOMAIN_ID_LENGTH = 64
+
+/**
+ * Utility method used across OfferCreate and Payment transactions to validate the DomainID.
+ *
+ * @param domainID - The domainID is a 64-character string that is used to identify a domain.
+ *
+ * @returns true if the domainID is a valid 64-character string, false otherwise
+ */
+export function isDomainID(domainID: unknown): domainID is string {
+  return (
+    isString(domainID) &&
+    domainID.length === _DOMAIN_ID_LENGTH &&
+    isHex(domainID)
+  )
 }
