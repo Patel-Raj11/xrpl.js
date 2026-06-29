@@ -4,6 +4,9 @@ Subscribe to [the **xrpl-announce** mailing list](https://groups.google.com/g/xr
 
 ## Unreleased
 
+### Added
+* Support for the `SingleAssetVault` amendment (XLS-65): `VaultCreate`, `VaultSet`, `VaultDelete`, `VaultDeposit`, `VaultWithdraw`, and `VaultClawback` transactions, the `Vault` ledger entry, the `vault_info` RPC method, and the `hashVault` utility
+
 ### Fixed
 * Fix `AccountRoot` ledger object to correctly parse `FirstNFTokenSequence` field
 * Fail faster on `tem` errors with `submitAndWait`

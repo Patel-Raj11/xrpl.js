@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+* Support for the `Number` (`STI_NUMBER`) field type, used by the `SingleAssetVault` amendment (XLS-65)
+
 ## 2.4.1 (2025-6-18)
 
 ### Fixed
