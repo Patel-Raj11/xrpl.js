@@ -11,6 +11,7 @@ import {
   IssuedCurrency,
   IssuedCurrencyAmount,
   MPTAmount,
+  MPTCurrency,
   Memo,
   Signer,
   XChainBridge,
@@ -21,6 +22,9 @@ const MEMO_SIZE = 3
 export const MAX_AUTHORIZED_CREDENTIALS = 8
 const MAX_CREDENTIAL_BYTE_LENGTH = 64
 const MAX_CREDENTIAL_TYPE_LENGTH = MAX_CREDENTIAL_BYTE_LENGTH * 2
+
+/** Maximum byte length of the Vault `Data` field (VaultCreate / VaultSet). */
+export const VAULT_DATA_MAX_BYTE_LENGTH = 256
 
 function isMemo(obj: unknown): obj is Memo {
   if (!isRecord(obj)) {
@@ -75,6 +79,7 @@ const ISSUE_SIZE = 2
 const ISSUED_CURRENCY_SIZE = 3
 const XCHAIN_BRIDGE_SIZE = 4
 const MPTOKEN_SIZE = 2
+const MPT_CURRENCY_SIZE = 1
 const AUTHORIZE_CREDENTIAL_SIZE = 1
 
 /**
@@ -183,6 +188,44 @@ export function isMPTAmount(input: unknown): input is MPTAmount {
     typeof input.value === 'string' &&
     typeof input.mpt_issuance_id === 'string'
   )
+}
+
+/**
+ * Verify the form and type of an MPTCurrency at runtime.
+ *
+ * @param input - The input to check the form and type of.
+ * @returns Whether the MPTCurrency is properly formed.
+ */
+export function isMPTCurrency(input: unknown): input is MPTCurrency {
+  return (
+    isRecord(input) &&
+    Object.keys(input).length === MPT_CURRENCY_SIZE &&
+    typeof input.mpt_issuance_id === 'string'
+  )
+}
+
+/**
+ * Verify the form and type of an Issue (asset definition) at runtime. An Issue
+ * may be XRP (`{ currency: "XRP" }`), an issued currency
+ * (`{ currency, issuer }`), or an MPT (`{ mpt_issuance_id }`).
+ *
+ * @param input - The input to check the form and type of.
+ * @returns Whether the Issue is properly formed.
+ */
+export function isIssue(input: unknown): input is Currency {
+  return isIssuedCurrency(input) || isMPTCurrency(input)
+}
+
+/**
+ * Verify the form and type of a Number (STI_NUMBER) field at runtime. A Number
+ * value may be supplied either as a JS number or as a decimal/scientific
+ * string (the canonical wire form).
+ *
+ * @param input - The input to check the form and type of.
+ * @returns Whether the value is a valid Number field.
+ */
+export function isXRPLNumber(input: unknown): input is number | string {
+  return typeof input === 'number' || typeof input === 'string'
 }
 
 /**
