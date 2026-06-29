@@ -228,6 +228,20 @@ export interface LedgerEntryRequest extends BaseRequest, LookupByLedgerRequest {
     account: string
     authorize: string
   }
+
+  /**
+   * The Vault to retrieve. If a string, interpret as the unique object ID of
+   * the Vault. If an object, requires the sub-fields `owner` and `seq` to
+   * uniquely identify the Vault.
+   */
+  vault?:
+    | {
+        /** The account address of the Vault Owner. */
+        owner: string
+        /** Sequence number of the VaultCreate transaction that created the vault. */
+        seq: number
+      }
+    | string
 }
 
 /**
