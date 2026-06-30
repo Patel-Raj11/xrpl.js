@@ -11,13 +11,15 @@ describe('STNumber', () => {
   // Known-answer encodings grounded in rippled's STNumber wire format:
   // int64 mantissa (big-endian) followed by int32 exponent (big-endian),
   // where the canonical zero is mantissa 0 with exponent INT_MIN (0x80000000),
-  // and non-zero values normalize the mantissa into [10^18, 10^19 - 1].
+  // and non-zero values normalize the mantissa into the Small scale
+  // [10^15, 10^16 - 1]. These hex values are verified byte-for-byte against
+  // rippled's serialization of the same Number.
   const knownEncodings: Array<[string, string]> = [
     ['0', '000000000000000080000000'],
-    // 10^18 mantissa, exponent -18
-    ['1', '0DE0B6B3A7640000FFFFFFEE'],
-    // 10^18 mantissa, exponent -12
-    ['1000000', '0DE0B6B3A7640000FFFFFFF4'],
+    // 10^15 mantissa, exponent -15
+    ['1', '00038D7EA4C68000FFFFFFF1'],
+    // 10^15 mantissa, exponent -9
+    ['1000000', '00038D7EA4C68000FFFFFFF7'],
   ]
 
   it.each(knownEncodings)(

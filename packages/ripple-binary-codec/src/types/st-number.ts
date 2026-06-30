@@ -16,19 +16,21 @@ const TWO = BigInt(2)
 const FIVE = BigInt(5)
 const TEN = BigInt(10)
 
-// Normalized mantissa range for the "large" scale used by SingleAssetVault
-// (rippled's MantissaRange): [10^18, 10^19 - 1].
-const MIN_MANTISSA = BigInt('1000000000000000000')
-const MAX_MANTISSA = BigInt('9999999999999999999')
-// Largest magnitude representable in a signed 64-bit mantissa (2^63 - 1).
-const MAX_REP = BigInt('9223372036854775807')
+// Normalized mantissa range for the "Small" scale that rippled uses for the
+// STNumber wire format (rippled's MantissaRange::MantissaScale::Small):
+// [10^15, 10^16 - 1], with mantissaLog 15. rippled's "Large" scale
+// ([10^18, 10^19 - 1]) is only used for internal arithmetic precision;
+// serialized STNumber values are always normalized to the Small scale.
+// See rippled basics/Number.{h,cpp}.
+const MIN_MANTISSA = BigInt('1000000000000000')
+const MAX_MANTISSA = BigInt('9999999999999999')
 const MIN_EXPONENT = -32768
 const MAX_EXPONENT = 32768
 // rippled encodes canonical zero as mantissa 0 with this exponent: a
 // default-constructed Number has exponent_ = std::numeric_limits<int>::lowest().
 const ZERO_EXPONENT = -2147483648
-// rippled Number::mantissaLog() for the large scale.
-const RANGE_LOG = 18
+// rippled Number::mantissaLog() for the serialized (Small) scale.
+const RANGE_LOG = 15
 
 const NUMBER_REGEX =
   /^(?<sign>[-+]?)(?<int>\d+)(?:\.(?<fraction>\d+))?(?:[eE](?<exp>[-+]?\d+))?$/u
@@ -76,8 +78,8 @@ function roundDropDigit(mantissa: bigint): bigint {
 }
 
 /**
- * Normalize a value to rippled's internal "large" mantissa range
- * [10^18, 10^19 - 1], or `{ mantissa: 0 }` for zero / underflow.
+ * Normalize a value to rippled's serialized "Small" mantissa range
+ * [10^15, 10^16 - 1], or `{ mantissa: 0 }` for zero / underflow.
  *
  * @param parts - The sign, mantissa, and exponent to normalize.
  * @returns The normalized sign, mantissa, and exponent.
@@ -221,16 +223,12 @@ class STNumber extends SerializedType {
       // rippled serializes the default Number as mantissa 0 with the lowest int.
       return new STNumber(STNumber.encode(ZERO, ZERO_EXPONENT))
     }
-    let mantissa = normalized.mantissa
-    let exponent = normalized.exponent
-    // External view: the wire mantissa must fit in a signed 64-bit integer, so
-    // drop a trailing digit when the internal mantissa exceeds 2^63 - 1.
-    if (mantissa > MAX_REP) {
-      mantissa /= TEN
-      exponent += 1
-    }
-    const signed = normalized.negative ? -mantissa : mantissa
-    return new STNumber(STNumber.encode(signed, exponent))
+    // The Small-scale mantissa (<= 10^16 - 1) always fits in a signed 64-bit
+    // integer, so it can be serialized directly.
+    const signed = normalized.negative
+      ? -normalized.mantissa
+      : normalized.mantissa
+    return new STNumber(STNumber.encode(signed, normalized.exponent))
   }
 
   /**
