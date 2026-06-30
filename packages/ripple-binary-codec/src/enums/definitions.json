@@ -3524,13 +3524,13 @@
       "lsfMPTRequireAuth": 4
     },
     "MPTokenIssuanceMutable": {
-      "lsmfMPTCanMutateCanClawback": 64,
-      "lsmfMPTCanMutateCanEscrow": 8,
-      "lsmfMPTCanMutateCanLock": 2,
-      "lsmfMPTCanMutateCanTrade": 16,
-      "lsmfMPTCanMutateCanTransfer": 32,
+      "lsmfMPTCanEnableCanClawback": 64,
+      "lsmfMPTCanEnableCanEscrow": 8,
+      "lsmfMPTCanEnableCanLock": 2,
+      "lsmfMPTCanEnableCanTrade": 16,
+      "lsmfMPTCanEnableCanTransfer": 32,
+      "lsmfMPTCanEnableRequireAuth": 4,
       "lsmfMPTCanMutateMetadata": 65536,
-      "lsmfMPTCanMutateRequireAuth": 4,
       "lsmfMPTCanMutateTransferFee": 131072
     },
     "NFTokenOffer": {
@@ -6702,5 +6702,5 @@
     "Vector256": 19,
     "XChainBridge": 25
   },
-  "hash": "C685734F5FEB756693B4BB978BBB3A158A65652E71EEB2977068B0D680689213"
+  "hash": "D046519A8368FBFD59519A1AF8DA312671C7294C3958DFFE907A3FA6CF0195E4"
 }

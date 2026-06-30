@@ -74,6 +74,88 @@ export interface MPTokenIssuanceCreateFlagsInterface extends GlobalFlagsInterfac
 }
 
 /**
+ * MutableFlags for an MPTokenIssuanceCreate transaction. Bits set here
+ * declare which capability flags and which fields on the resulting
+ * MPTokenIssuance may be modified after creation via MPTokenIssuanceSet.
+ *
+ * @category Transaction Flags
+ */
+export enum MPTokenIssuanceCreateMutableFlags {
+  /**
+   * Declares lsfMPTCanLock as enable-able post-creation; the issuer
+   * may later set lsfMPTCanLock on the issuance via MPTokenIssuanceSet's
+   * tmfMPTSetCanLock.
+   */
+  tmfMPTCanEnableCanLock = 0x00000002,
+  /**
+   * Declares lsfMPTRequireAuth as enable-able post-creation; the issuer
+   * may later set lsfMPTRequireAuth on the issuance via MPTokenIssuanceSet's
+   * tmfMPTSetRequireAuth.
+   */
+  tmfMPTCanEnableRequireAuth = 0x00000004,
+  /**
+   * Declares lsfMPTCanEscrow as enable-able post-creation; the issuer
+   * may later set lsfMPTCanEscrow on the issuance via MPTokenIssuanceSet's
+   * tmfMPTSetCanEscrow.
+   */
+  tmfMPTCanEnableCanEscrow = 0x00000008,
+  /**
+   * Declares lsfMPTCanTrade as enable-able post-creation; the issuer
+   * may later set lsfMPTCanTrade on the issuance via MPTokenIssuanceSet's
+   * tmfMPTSetCanTrade.
+   */
+  tmfMPTCanEnableCanTrade = 0x00000010,
+  /**
+   * Declares lsfMPTCanTransfer as enable-able post-creation; the issuer
+   * may later set lsfMPTCanTransfer on the issuance via MPTokenIssuanceSet's
+   * tmfMPTSetCanTransfer.
+   */
+  tmfMPTCanEnableCanTransfer = 0x00000020,
+  /**
+   * Declares lsfMPTCanClawback as enable-able post-creation; the issuer
+   * may later set lsfMPTCanClawback on the issuance via MPTokenIssuanceSet's
+   * tmfMPTSetCanClawback.
+   */
+  tmfMPTCanEnableCanClawback = 0x00000040,
+  /**
+   * Allows field MPTokenMetadata to be modified.
+   */
+  tmfMPTCanMutateMetadata = 0x00010000,
+  /**
+   * Allows field TransferFee to be modified.
+   */
+  tmfMPTCanMutateTransferFee = 0x00020000,
+}
+
+/**
+ * Map of MutableFlags to boolean values representing
+ * {@link MPTokenIssuanceCreate}'s MutableFlags field.
+ *
+ * @category Transaction Flags
+ */
+export interface MPTokenIssuanceCreateMutableFlagsInterface {
+  tmfMPTCanEnableCanLock?: boolean
+  tmfMPTCanEnableRequireAuth?: boolean
+  tmfMPTCanEnableCanEscrow?: boolean
+  tmfMPTCanEnableCanTrade?: boolean
+  tmfMPTCanEnableCanTransfer?: boolean
+  tmfMPTCanEnableCanClawback?: boolean
+  tmfMPTCanMutateMetadata?: boolean
+  tmfMPTCanMutateTransferFee?: boolean
+}
+
+// Mask of every valid bit on MPTokenIssuanceCreate.MutableFlags.
+const MPT_ISSUANCE_CREATE_MUTABLE_MASK =
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanLock |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableRequireAuth |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanEscrow |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanTrade |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanTransfer |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanEnableCanClawback |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanMutateMetadata |
+  MPTokenIssuanceCreateMutableFlags.tmfMPTCanMutateTransferFee
+
+/**
  * The MPTokenIssuanceCreate transaction creates a MPTokenIssuance object
  * and adds it to the relevant directory node of the creator account.
  * This transaction is the only opportunity an issuer has to specify any token fields
@@ -121,10 +203,39 @@ export interface MPTokenIssuanceCreate extends BaseTransaction {
   MPTokenMetadata?: string
 
   Flags?: number | MPTokenIssuanceCreateFlagsInterface
+
+  /**
+   * Indicate specific fields or flags mutable. Bits must lie within the
+   * MPTokenIssuanceCreate.MutableFlags mask; if present, must be non-zero.
+   */
+  MutableFlags?: number | MPTokenIssuanceCreateMutableFlagsInterface
 }
 
 export interface MPTokenIssuanceCreateMetadata extends TransactionMetadataBase {
   mpt_issuance_id?: string
+}
+
+function resolveMPTokenIssuanceCreateMutableFlags(
+  mutableFlags: number | MPTokenIssuanceCreateMutableFlagsInterface,
+): number {
+  if (typeof mutableFlags === 'number') {
+    return mutableFlags
+  }
+  return Object.keys(mutableFlags).reduce((acc, key) => {
+    const bit =
+      MPTokenIssuanceCreateMutableFlags[
+        key as keyof typeof MPTokenIssuanceCreateMutableFlags
+      ]
+    if (bit == null || typeof bit !== 'number') {
+      throw new ValidationError(
+        `MPTokenIssuanceCreate: invalid MutableFlags member ${key}`,
+      )
+    }
+    // eslint-disable-next-line no-bitwise -- bitmask combine
+    return mutableFlags[key as keyof MPTokenIssuanceCreateMutableFlagsInterface]
+      ? acc | bit
+      : acc
+  }, 0)
 }
 
 /* eslint-disable max-lines-per-function -- Not needed to reduce function */
@@ -185,6 +296,29 @@ export function validateMPTokenIssuanceCreate(
     if (tx.TransferFee && !isTfMPTCanTransfer) {
       throw new ValidationError(
         'MPTokenIssuanceCreate: TransferFee cannot be provided without enabling tfMPTCanTransfer flag',
+      )
+    }
+  }
+
+  if (tx.MutableFlags != null) {
+    if (
+      typeof tx.MutableFlags !== 'number' &&
+      (typeof tx.MutableFlags !== 'object' || Array.isArray(tx.MutableFlags))
+    ) {
+      throw new ValidationError(
+        'MPTokenIssuanceCreate: invalid field MutableFlags',
+      )
+    }
+    const numericMutableFlags = resolveMPTokenIssuanceCreateMutableFlags(
+      tx.MutableFlags as number | MPTokenIssuanceCreateMutableFlagsInterface,
+    )
+    if (
+      numericMutableFlags === 0 ||
+      // eslint-disable-next-line no-bitwise -- bitmask compare
+      (numericMutableFlags & ~MPT_ISSUANCE_CREATE_MUTABLE_MASK) !== 0
+    ) {
+      throw new ValidationError(
+        'MPTokenIssuanceCreate: invalid field MutableFlags',
       )
     }
   }

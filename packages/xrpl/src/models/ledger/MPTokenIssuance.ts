@@ -1,5 +1,59 @@
 import { BaseLedgerEntry, HasPreviousTxnID } from './BaseLedgerEntry'
 
+/**
+ * MutableFlags on an MPTokenIssuance. Bits set here declare which
+ * capabilities and which fields on this issuance may be modified
+ * post-creation via MPTokenIssuanceSet.
+ *
+ * @category Ledger Entries
+ */
+export enum MPTokenIssuanceMutableFlags {
+  /**
+   * When set, the issuer may later enable lsfMPTCanLock on this
+   * MPTokenIssuance via MPTokenIssuanceSet. The capability cannot be
+   * disabled once enabled.
+   */
+  lsmfMPTCanEnableCanLock = 0x00000002,
+  /**
+   * When set, the issuer may later enable lsfMPTRequireAuth on this
+   * MPTokenIssuance via MPTokenIssuanceSet. The capability cannot be
+   * disabled once enabled.
+   */
+  lsmfMPTCanEnableRequireAuth = 0x00000004,
+  /**
+   * When set, the issuer may later enable lsfMPTCanEscrow on this
+   * MPTokenIssuance via MPTokenIssuanceSet. The capability cannot be
+   * disabled once enabled.
+   */
+  lsmfMPTCanEnableCanEscrow = 0x00000008,
+  /**
+   * When set, the issuer may later enable lsfMPTCanTrade on this
+   * MPTokenIssuance via MPTokenIssuanceSet. The capability cannot be
+   * disabled once enabled.
+   */
+  lsmfMPTCanEnableCanTrade = 0x00000010,
+  /**
+   * When set, the issuer may later enable lsfMPTCanTransfer on this
+   * MPTokenIssuance via MPTokenIssuanceSet. The capability cannot be
+   * disabled once enabled.
+   */
+  lsmfMPTCanEnableCanTransfer = 0x00000020,
+  /**
+   * When set, the issuer may later enable lsfMPTCanClawback on this
+   * MPTokenIssuance via MPTokenIssuanceSet. The capability cannot be
+   * disabled once enabled.
+   */
+  lsmfMPTCanEnableCanClawback = 0x00000040,
+  /**
+   * Allows field MPTokenMetadata to be modified.
+   */
+  lsmfMPTCanMutateMetadata = 0x00010000,
+  /**
+   * Allows field TransferFee to be modified.
+   */
+  lsmfMPTCanMutateTransferFee = 0x00020000,
+}
+
 export interface MPTokenIssuance extends BaseLedgerEntry, HasPreviousTxnID {
   LedgerEntryType: 'MPTokenIssuance'
   /**
@@ -77,4 +131,11 @@ export interface MPTokenIssuance extends BaseLedgerEntry, HasPreviousTxnID {
    * vaults. Absent for XRP-backed vaults.
    */
   ReferenceHolding?: string
+  /**
+   * Bitmask declaring which capability flags (lsfMPTCan*) and which
+   * fields (MPTokenMetadata, TransferFee) may be modified after
+   * creation. See {@link MPTokenIssuanceMutableFlags} for the bit
+   * layout. Absent or 0 means the issuance is fully immutable.
+   */
+  MutableFlags?: number
 }
