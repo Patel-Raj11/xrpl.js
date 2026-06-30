@@ -34,7 +34,7 @@
     "ripple-keypairs": "^3.0.0"
   },
   "devDependencies": {
-    "@types/node": "^18.18.38",
+    "@types/node": "^26.0.1",
     "eventemitter3": "^5.0.1",
     "https-proxy-agent": "^9.0.0",
     "karma": "^6.4.1",
