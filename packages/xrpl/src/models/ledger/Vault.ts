@@ -1,0 +1,54 @@
+import { Currency } from '../common'
+
+import { BaseLedgerEntry, HasPreviousTxnID } from './BaseLedgerEntry'
+
+/**
+ * Flags for the Vault ledger entry.
+ *
+ * @category Ledger Entry Flags
+ */
+export enum VaultFlags {
+  /** If set, indicates that the vault is private. */
+  lsfVaultPrivate = 0x00010000,
+}
+
+/**
+ * The Vault ledger entry describes the state of the tokenized vault.
+ *
+ * @category Ledger Entries
+ */
+export default interface Vault extends BaseLedgerEntry, HasPreviousTxnID {
+  LedgerEntryType: 'Vault'
+  /** A bit-map of boolean flags enabled for this vault. */
+  Flags: number
+  /** The transaction sequence number that created the vault. */
+  Sequence: number
+  /** Identifies the page where this item is referenced in the owner's directory. */
+  OwnerNode: string
+  /** The account address of the Vault Owner. */
+  Owner: string
+  /** The address of the Vaults pseudo-account. */
+  Account: string
+  /** Arbitrary metadata about the Vault. Limited to 256 bytes. */
+  Data?: string
+  /** The asset of the vault. The vault supports XRP, IOU and MPT. */
+  Asset: Currency
+  /** The total value of the vault. */
+  AssetsTotal: string
+  /** The asset amount that is available in the vault. */
+  AssetsAvailable: string
+  /**
+   * The maximum asset amount that can be held in the vault. Zero value 0
+   * indicates there is no cap.
+   */
+  AssetsMaximum?: string
+  /**
+   * The potential loss amount that is not yet realized expressed as the vaults
+   * asset.
+   */
+  LossUnrealized: string
+  /** The identifier of the share MPTokenIssuance object. */
+  ShareMPTID: string
+  /** Indicates the withdrawal strategy used by the Vault. */
+  WithdrawalPolicy: number
+}

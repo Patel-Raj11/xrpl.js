@@ -185,4 +185,25 @@ export function hashPaymentChannel(
   )
 }
 
+/**
+ * Compute the Hash (object ID) of a Vault LedgerEntry.
+ *
+ * The Index of a Vault object is the SHA-512Half of the following values, concatenated in order:
+ *   * The Vault space key (0x0056)
+ *   * The AccountID of the Vault Owner
+ *   * The Sequence number of the VaultCreate transaction that created the Vault.
+ *
+ * @param address - The classic account address of the Vault Owner.
+ * @param sequence - Sequence of the VaultCreate transaction that created the Vault.
+ * @returns The hash (object ID) of the Vault LedgerEntry.
+ * @category Utilities
+ */
+export function hashVault(address: string, sequence: number): string {
+  return sha512Half(
+    ledgerSpaceHex('vault') +
+      addressToHex(address) +
+      sequence.toString(HEX).padStart(BYTE_LENGTH * 2, '0'),
+  )
+}
+
 export { hashLedgerHeader, hashSignedTx, hashLedger, hashStateTree, hashTxTree }
