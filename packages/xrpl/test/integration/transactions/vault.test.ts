@@ -548,8 +548,10 @@ describe('Vault', function () {
       // minimal vault proves they are omitted (and that every REQUIRED field
       // is always present). This guards against drift between the SDK response
       // models and the rippled wire format.
-      const VAULT_DATA = 'DEADBEEF' // arbitrary hex Vault metadata
-      const SHARE_METADATA = 'CAFE' // arbitrary hex share-MPT metadata
+      // arbitrary hex Vault metadata
+      const VAULT_DATA = 'DEADBEEF'
+      // arbitrary hex share-MPT metadata
+      const SHARE_METADATA = 'CAFE'
 
       // ── A fully-populated public XRP vault ─────────────────────────────
       const fullOwner = testContext.wallet
