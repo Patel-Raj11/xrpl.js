@@ -1,3 +1,4 @@
+/* eslint-disable max-statements -- the lifecycle test exercises many sequential vault operations */
 import { assert } from 'chai'
 
 import {

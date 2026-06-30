@@ -22,19 +22,17 @@ describe('STNumber', () => {
     ['1000000', '00038D7EA4C68000FFFFFFF7'],
   ]
 
-  it.each(knownEncodings)(
-    'serializes %s to the expected 12-byte hex',
-    (value, hex) => {
+  knownEncodings.forEach(([value, hex]) => {
+    it(`serializes ${value} to the expected 12-byte hex`, () => {
       expect(STNumber.from(value).toHex()).toBe(hex)
-    },
-  )
+    })
+  })
 
-  it.each(knownEncodings)(
-    'deserializes the hex for %s back to its canonical string',
-    (value, hex) => {
+  knownEncodings.forEach(([value, hex]) => {
+    it(`deserializes the hex for ${value} back to its canonical string`, () => {
       expect(STNumber.fromParser(makeParser(hex)).toJSON()).toBe(value)
-    },
-  )
+    })
+  })
 
   const roundTripValues = [
     '0',
@@ -50,15 +48,14 @@ describe('STNumber', () => {
     '-1000000',
   ]
 
-  it.each(roundTripValues)(
-    'round-trips %s through serialize -> parse',
-    (value) => {
+  roundTripValues.forEach((value) => {
+    it(`round-trips ${value} through serialize -> parse`, () => {
       const hex = STNumber.from(value).toHex()
       const json = STNumber.fromParser(makeParser(hex)).toJSON()
       // Re-serializing the decoded JSON must reproduce the same bytes.
       expect(STNumber.from(json).toHex()).toBe(hex)
-    },
-  )
+    })
+  })
 
   it('encodes the default-constructed value as canonical zero', () => {
     expect(new STNumber().toHex()).toBe('000000000000000080000000')
@@ -66,7 +63,9 @@ describe('STNumber', () => {
   })
 
   it('treats numeric and bigint inputs the same as their string form', () => {
-    expect(STNumber.from(1000000).toHex()).toBe(STNumber.from('1000000').toHex())
+    expect(STNumber.from(1000000).toHex()).toBe(
+      STNumber.from('1000000').toHex(),
+    )
     expect(STNumber.from(BigInt('1000000')).toHex()).toBe(
       STNumber.from('1000000').toHex(),
     )
@@ -78,8 +77,9 @@ describe('STNumber', () => {
   })
 })
 
-function makeParser(hex: string): import('../src/serdes/binary-parser').BinaryParser {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires -- test helper
+function makeParser(
+  hex: string,
+): import('../src/serdes/binary-parser').BinaryParser {
   const { BinaryParser } = require('../src/serdes/binary-parser')
   return new BinaryParser(hex)
 }

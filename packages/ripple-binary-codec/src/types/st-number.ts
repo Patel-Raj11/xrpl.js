@@ -118,7 +118,11 @@ function normalizeToInternal(parts: NumberParts): NumberParts {
  * @param exponent - The exponent.
  * @returns The scientific-notation string.
  */
-function toScientific(sign: string, mantissa: bigint, exponent: number): string {
+function toScientific(
+  sign: string,
+  mantissa: bigint,
+  exponent: number,
+): string {
   let m = mantissa
   let e = exponent
   while (m % TEN === ZERO && e < MAX_EXPONENT) {
