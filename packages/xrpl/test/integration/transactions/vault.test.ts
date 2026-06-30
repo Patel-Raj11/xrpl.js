@@ -538,4 +538,134 @@ describe('Vault', function () {
     },
     TIMEOUT,
   )
+
+  it(
+    'response contract: vault_info envelope, Vault entry, and shares sub-object',
+    async () => {
+      // A dedicated response-contract test that pins the TYPE and OPTIONALITY
+      // of every field vault_info returns. A fully-populated vault proves the
+      // OPTIONAL/DEFAULT fields surface with the right type when present; a
+      // minimal vault proves they are omitted (and that every REQUIRED field
+      // is always present). This guards against drift between the SDK response
+      // models and the rippled wire format.
+      const VAULT_DATA = 'DEADBEEF' // arbitrary hex Vault metadata
+      const SHARE_METADATA = 'CAFE' // arbitrary hex share-MPT metadata
+
+      // ── A fully-populated public XRP vault ─────────────────────────────
+      const fullOwner = testContext.wallet
+      const fullCreate: VaultCreate = {
+        TransactionType: 'VaultCreate',
+        Account: fullOwner.classicAddress,
+        Asset: { currency: 'XRP' },
+        AssetsMaximum: '1000000',
+        WithdrawalPolicy: 1,
+        Data: VAULT_DATA,
+        MPTokenMetadata: SHARE_METADATA,
+      }
+      const fullCreateResponse = await testTransaction(
+        testContext.client,
+        fullCreate,
+        fullOwner,
+      )
+      const fullVaultId = hashVault(
+        fullOwner.classicAddress,
+        fullCreateResponse.result.tx_json.Sequence as number,
+      )
+      const fullInfo = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: fullVaultId,
+      })
+
+      // Response envelope: the request omits a ledger, so rippled answers from
+      // the current (open) ledger — ledger_current_index and validated are
+      // set, while ledger_index and ledger_hash are absent.
+      assert.typeOf(fullInfo.result.vault, 'object')
+      assert.typeOf(fullInfo.result.ledger_current_index, 'number')
+      assert.typeOf(fullInfo.result.validated, 'boolean')
+      assert.isUndefined(fullInfo.result.ledger_index)
+      assert.isUndefined(fullInfo.result.ledger_hash)
+
+      const { vault } = fullInfo.result
+
+      // Vault entry — REQUIRED fields, present with the documented type.
+      assert.equal(vault.LedgerEntryType, 'Vault')
+      assert.typeOf(vault.index, 'string')
+      assert.typeOf(vault.PreviousTxnID, 'string')
+      assert.typeOf(vault.PreviousTxnLgrSeq, 'number')
+      assert.typeOf(vault.Flags, 'number')
+      assert.typeOf(vault.Sequence, 'number')
+      assert.typeOf(vault.OwnerNode, 'string')
+      assert.typeOf(vault.Owner, 'string')
+      assert.typeOf(vault.Account, 'string')
+      assert.typeOf(vault.Asset, 'object')
+      assert.deepEqual(vault.Asset, { currency: 'XRP' })
+      assert.typeOf(vault.AssetsTotal, 'string')
+      assert.typeOf(vault.AssetsAvailable, 'string')
+      assert.typeOf(vault.LossUnrealized, 'string')
+      assert.typeOf(vault.ShareMPTID, 'string')
+      assert.typeOf(vault.WithdrawalPolicy, 'number')
+
+      // Vault entry — OPTIONAL (Data) and DEFAULT (AssetsMaximum) fields are
+      // present here because they were supplied at creation.
+      assert.typeOf(vault.Data, 'string')
+      assert.equal(vault.Data, VAULT_DATA)
+      assert.typeOf(vault.AssetsMaximum, 'string')
+      assert.equal(vault.AssetsMaximum, '1000000')
+
+      // shares sub-object (an MPTokenIssuance): issued by the vault's
+      // pseudo-account, and its id echoes the entry's ShareMPTID.
+      const { shares } = vault
+      assert.typeOf(shares, 'object')
+      assert.equal(shares.LedgerEntryType, 'MPTokenIssuance')
+      assert.typeOf(shares.Flags, 'number')
+      assert.typeOf(shares.Issuer, 'string')
+      assert.equal(shares.Issuer, vault.Account)
+      assert.typeOf(shares.OutstandingAmount, 'string')
+      assert.typeOf(shares.OwnerNode, 'string')
+      assert.typeOf(shares.mpt_issuance_id, 'string')
+      assert.equal(shares.mpt_issuance_id, vault.ShareMPTID)
+      // OPTIONAL share metadata is present because it was supplied; a public
+      // vault's share issuance carries no DomainID.
+      assert.typeOf(shares.MPTokenMetadata, 'string')
+      assert.equal(shares.MPTokenMetadata, SHARE_METADATA)
+      assert.isUndefined(shares.DomainID)
+
+      // ── A minimal public XRP vault (no optional inputs) ────────────────
+      const minOwner = await generateFundedWallet(testContext.client)
+      const minCreate: VaultCreate = {
+        TransactionType: 'VaultCreate',
+        Account: minOwner.classicAddress,
+        Asset: { currency: 'XRP' },
+      }
+      const minCreateResponse = await testTransaction(
+        testContext.client,
+        minCreate,
+        minOwner,
+      )
+      const minVaultId = hashVault(
+        minOwner.classicAddress,
+        minCreateResponse.result.tx_json.Sequence as number,
+      )
+      const minInfo = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: minVaultId,
+      })
+      const minVault = minInfo.result.vault
+
+      // REQUIRED fields are present even with no optional inputs, and
+      // WithdrawalPolicy defaults to vaultStrategyFirstComeFirstServe (1).
+      assert.equal(minVault.LedgerEntryType, 'Vault')
+      assert.typeOf(minVault.AssetsTotal, 'string')
+      assert.typeOf(minVault.AssetsAvailable, 'string')
+      assert.typeOf(minVault.LossUnrealized, 'string')
+      assert.typeOf(minVault.ShareMPTID, 'string')
+      assert.equal(minVault.WithdrawalPolicy, 1)
+
+      // OPTIONAL / DEFAULT fields are omitted when not supplied.
+      assert.isUndefined(minVault.Data)
+      assert.isUndefined(minVault.AssetsMaximum)
+      assert.isUndefined(minVault.shares.MPTokenMetadata)
+    },
+    TIMEOUT,
+  )
 })
