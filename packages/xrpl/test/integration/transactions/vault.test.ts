@@ -332,7 +332,9 @@ describe('Vault', function () {
         'vault_info includes the shares sub-object',
       )
       assert.isDefined(vault.shares.mpt_issuance_id)
-      assert.typeOf(info.result.ledger_index, 'number')
+      // The request omits a ledger, so rippled answers from the current (open)
+      // ledger and returns `ledger_current_index` (not `ledger_index`).
+      assert.typeOf(info.result.ledger_current_index, 'number')
 
       // Response-type contract: the pseudo-account AccountRoot designates the
       // vault via the new optional VaultID field.

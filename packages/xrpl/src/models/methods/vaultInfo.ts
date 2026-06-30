@@ -41,8 +41,20 @@ export interface VaultInfoResponse extends BaseResponse {
         mpt_issuance_id?: string
       }
     }
-    ledger_index: number
+    /** The identifying hash of the ledger version used to generate this response. */
     ledger_hash?: string
+    /**
+     * The ledger index of the closed ledger version used to generate this
+     * response. Present when a closed/validated ledger was queried.
+     */
+    ledger_index?: number
+    /**
+     * The ledger index of the current in-progress ledger version used to
+     * generate this response. Present when the current (open) ledger was
+     * queried — the default when no ledger is specified.
+     */
+    ledger_current_index?: number
+    /** True if this data is from a validated ledger version. */
     validated?: boolean
   }
 }
