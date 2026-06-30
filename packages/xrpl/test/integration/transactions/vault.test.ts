@@ -8,8 +8,15 @@ import {
   VaultDeposit,
   VaultSet,
   VaultWithdraw,
+  Wallet,
 } from '../../../src'
 import Vault from '../../../src/models/ledger/Vault'
+import {
+  AccountSet,
+  AccountSetAsfFlags,
+  Payment,
+  TrustSet,
+} from '../../../src/models/transactions'
 import { hashVault } from '../../../src/utils/hashes'
 import serverUrl from '../serverUrl'
 import {
@@ -17,10 +24,73 @@ import {
   teardownClient,
   type XrplIntegrationTestContext,
 } from '../setup'
-import { testTransaction } from '../utils'
+import { generateFundedWallet, testTransaction } from '../utils'
 
 // how long before each test case times out
 const TIMEOUT = 20000
+
+const IOU_CURRENCY = 'USD'
+
+/**
+ * Stands up an IOU issuer and funds `holder` with a trustline and balance,
+ * mirroring the IOU setup used elsewhere in the integration suite. Used to
+ * exercise vault flows over an IOU asset (lifecycle, wrong-asset, clawback).
+ *
+ * @param context - The active integration test context.
+ * @param accounts - The holder and issuer wallets.
+ * @param accounts.holder - The wallet that receives a trustline and balance.
+ * @param accounts.issuer - The wallet that issues the IOU.
+ * @param options - Optional issuer configuration.
+ * @param options.allowClawback - Set asfAllowTrustLineClawback on the issuer.
+ * @param options.value - IOU amount to send the holder.
+ */
+async function setupIouIssuer(
+  context: XrplIntegrationTestContext,
+  accounts: { holder: Wallet; issuer: Wallet },
+  options: { allowClawback?: boolean; value?: string } = {},
+): Promise<void> {
+  const { holder, issuer } = accounts
+  const { allowClawback = false, value = '100000' } = options
+
+  const defaultRipple: AccountSet = {
+    TransactionType: 'AccountSet',
+    Account: issuer.classicAddress,
+    SetFlag: AccountSetAsfFlags.asfDefaultRipple,
+  }
+  await testTransaction(context.client, defaultRipple, issuer)
+
+  if (allowClawback) {
+    const enableClawback: AccountSet = {
+      TransactionType: 'AccountSet',
+      Account: issuer.classicAddress,
+      SetFlag: AccountSetAsfFlags.asfAllowTrustLineClawback,
+    }
+    await testTransaction(context.client, enableClawback, issuer)
+  }
+
+  const trust: TrustSet = {
+    TransactionType: 'TrustSet',
+    Account: holder.classicAddress,
+    LimitAmount: {
+      currency: IOU_CURRENCY,
+      issuer: issuer.classicAddress,
+      value: '10000000',
+    },
+  }
+  await testTransaction(context.client, trust, holder)
+
+  const fund: Payment = {
+    TransactionType: 'Payment',
+    Account: issuer.classicAddress,
+    Destination: holder.classicAddress,
+    Amount: {
+      currency: IOU_CURRENCY,
+      issuer: issuer.classicAddress,
+      value,
+    },
+  }
+  await testTransaction(context.client, fund, issuer)
+}
 
 describe('Vault', function () {
   let testContext: XrplIntegrationTestContext
@@ -204,6 +274,265 @@ describe('Vault', function () {
         undefined,
         'temMALFORMED',
       )
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'Lifecycle and response contract of an IOU Vault',
+    async () => {
+      const owner = testContext.wallet
+      const issuer = await generateFundedWallet(testContext.client)
+      await setupIouIssuer(testContext, { holder: owner, issuer })
+
+      const asset = { currency: IOU_CURRENCY, issuer: issuer.classicAddress }
+
+      // Capability: construct and submit a VaultCreate over an IOU asset.
+      const create: VaultCreate = {
+        TransactionType: 'VaultCreate',
+        Account: owner.classicAddress,
+        Asset: asset,
+        AssetsMaximum: '1000',
+        WithdrawalPolicy: 1,
+      }
+      const createResponse = await testTransaction(
+        testContext.client,
+        create,
+        owner,
+      )
+      const vaultId = hashVault(
+        owner.classicAddress,
+        createResponse.result.tx_json.Sequence as number,
+      )
+
+      // Response-type contract: vault_info returns the full Vault entry plus
+      // its share MPTokenIssuance sub-object.
+      const info = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: vaultId,
+      })
+      const { vault } = info.result
+      assert.equal(vault.LedgerEntryType, 'Vault')
+      assert.equal(vault.index, vaultId)
+      assert.equal(vault.Owner, owner.classicAddress)
+      assert.notEqual(
+        vault.Account,
+        owner.classicAddress,
+        'a vault is held by a distinct pseudo-account',
+      )
+      assert.deepEqual(vault.Asset, asset)
+      assert.equal(vault.WithdrawalPolicy, 1)
+      assert.isDefined(vault.ShareMPTID)
+      assert.isDefined(vault.AssetsTotal)
+      assert.isDefined(vault.AssetsAvailable)
+      assert.isDefined(vault.LossUnrealized)
+      assert.typeOf(vault.Sequence, 'number')
+      assert.isDefined(
+        vault.shares,
+        'vault_info includes the shares sub-object',
+      )
+      assert.isDefined(vault.shares.mpt_issuance_id)
+      assert.typeOf(info.result.ledger_index, 'number')
+
+      // Response-type contract: the pseudo-account AccountRoot designates the
+      // vault via the new optional VaultID field.
+      const pseudoAccount = await testContext.client.request({
+        command: 'account_info',
+        account: vault.Account,
+      })
+      assert.equal(pseudoAccount.result.account_data.VaultID, vaultId)
+
+      // End-to-end: deposit IOU, observe balances grow, then withdraw + delete.
+      const deposit: VaultDeposit = {
+        TransactionType: 'VaultDeposit',
+        Account: owner.classicAddress,
+        VaultID: vaultId,
+        Amount: {
+          currency: IOU_CURRENCY,
+          issuer: issuer.classicAddress,
+          value: '100',
+        },
+      }
+      await testTransaction(testContext.client, deposit, owner)
+
+      const afterDeposit = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: vaultId,
+      })
+      assert.equal(Number(afterDeposit.result.vault.AssetsTotal), 100)
+      assert.equal(Number(afterDeposit.result.vault.AssetsAvailable), 100)
+
+      const withdraw: VaultWithdraw = {
+        TransactionType: 'VaultWithdraw',
+        Account: owner.classicAddress,
+        VaultID: vaultId,
+        Amount: {
+          currency: IOU_CURRENCY,
+          issuer: issuer.classicAddress,
+          value: '100',
+        },
+      }
+      await testTransaction(testContext.client, withdraw, owner)
+
+      const afterWithdraw = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: vaultId,
+      })
+      assert.equal(Number(afterWithdraw.result.vault.AssetsTotal), 0)
+
+      const del: VaultDelete = {
+        TransactionType: 'VaultDelete',
+        Account: owner.classicAddress,
+        VaultID: vaultId,
+      }
+      await testTransaction(testContext.client, del, owner)
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'rejects deposits over AssetsMaximum or with the wrong asset',
+    async () => {
+      const owner = testContext.wallet
+      const issuer = await generateFundedWallet(testContext.client)
+      await setupIouIssuer(testContext, { holder: owner, issuer })
+
+      // A capped XRP vault rejects a deposit beyond AssetsMaximum.
+      const create: VaultCreate = {
+        TransactionType: 'VaultCreate',
+        Account: owner.classicAddress,
+        Asset: { currency: 'XRP' },
+        AssetsMaximum: '1000000',
+        WithdrawalPolicy: 1,
+      }
+      const createResponse = await testTransaction(
+        testContext.client,
+        create,
+        owner,
+      )
+      const vaultId = hashVault(
+        owner.classicAddress,
+        createResponse.result.tx_json.Sequence as number,
+      )
+
+      const overCap: VaultDeposit = {
+        TransactionType: 'VaultDeposit',
+        Account: owner.classicAddress,
+        VaultID: vaultId,
+        Amount: '2000000',
+      }
+      await testTransaction(
+        testContext.client,
+        overCap,
+        owner,
+        undefined,
+        'tecLIMIT_EXCEEDED',
+      )
+
+      // Depositing an IOU into an XRP vault is the wrong asset.
+      const wrongAsset: VaultDeposit = {
+        TransactionType: 'VaultDeposit',
+        Account: owner.classicAddress,
+        VaultID: vaultId,
+        Amount: {
+          currency: IOU_CURRENCY,
+          issuer: issuer.classicAddress,
+          value: '10',
+        },
+      }
+      await testTransaction(
+        testContext.client,
+        wrongAsset,
+        owner,
+        undefined,
+        'tecWRONG_ASSET',
+      )
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'allows the IOU issuer to claw back a holder vault position',
+    async () => {
+      // The issuer of a clawback-enabled IOU owns a vault; a holder deposits
+      // and the issuer claws back, first partially then fully (Amount 0).
+      const issuer = testContext.wallet
+      const holder = await generateFundedWallet(testContext.client)
+      await setupIouIssuer(
+        testContext,
+        { holder, issuer },
+        { allowClawback: true, value: '1000' },
+      )
+
+      const asset = { currency: IOU_CURRENCY, issuer: issuer.classicAddress }
+
+      const create: VaultCreate = {
+        TransactionType: 'VaultCreate',
+        Account: issuer.classicAddress,
+        Asset: asset,
+        WithdrawalPolicy: 1,
+      }
+      const createResponse = await testTransaction(
+        testContext.client,
+        create,
+        issuer,
+      )
+      const vaultId = hashVault(
+        issuer.classicAddress,
+        createResponse.result.tx_json.Sequence as number,
+      )
+
+      const deposit: VaultDeposit = {
+        TransactionType: 'VaultDeposit',
+        Account: holder.classicAddress,
+        VaultID: vaultId,
+        Amount: {
+          currency: IOU_CURRENCY,
+          issuer: issuer.classicAddress,
+          value: '500',
+        },
+      }
+      await testTransaction(testContext.client, deposit, holder)
+
+      // Partial clawback reduces the vault's total assets.
+      const partial: VaultClawback = {
+        TransactionType: 'VaultClawback',
+        Account: issuer.classicAddress,
+        VaultID: vaultId,
+        Holder: holder.classicAddress,
+        Amount: {
+          currency: IOU_CURRENCY,
+          issuer: issuer.classicAddress,
+          value: '200',
+        },
+      }
+      await testTransaction(testContext.client, partial, issuer)
+
+      const afterPartial = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: vaultId,
+      })
+      assert.isBelow(Number(afterPartial.result.vault.AssetsTotal), 500)
+
+      // Amount 0 claws back the holder's entire remaining position.
+      const full: VaultClawback = {
+        TransactionType: 'VaultClawback',
+        Account: issuer.classicAddress,
+        VaultID: vaultId,
+        Holder: holder.classicAddress,
+        Amount: {
+          currency: IOU_CURRENCY,
+          issuer: issuer.classicAddress,
+          value: '0',
+        },
+      }
+      await testTransaction(testContext.client, full, issuer)
+
+      const afterFull = await testContext.client.request({
+        command: 'vault_info',
+        vault_id: vaultId,
+      })
+      assert.equal(Number(afterFull.result.vault.AssetsTotal), 0)
     },
     TIMEOUT,
   )
