@@ -21,6 +21,7 @@ import {
   hashAccountRoot,
   hashOfferId,
   hashSignerListId,
+  hashVault,
 } from '../../src/utils/hashes'
 import fixtures from '../fixtures/rippled'
 import { assertResultMatch } from '../testUtils'
@@ -145,6 +146,16 @@ describe('Hashes', function () {
     const expectedEntryHash =
       'E35708503B3C3143FB522D749AAFCC296E8060F0FB371A9A56FAE0B1ED127366'
     const actualEntryHash = hashPaymentChannel(account, dstAccount, sequence)
+
+    assert.equal(actualEntryHash, expectedEntryHash)
+  })
+
+  it('calcVaultEntryHash', function () {
+    const account = 'rDx69ebzbowuqztksVDmZXjizTd12BVr4x'
+    const sequence = 84
+    const expectedEntryHash =
+      'F682114686035F0540EEB77C1D213BE02B7C2A9481D20EFF1F21F067C98F4CC5'
+    const actualEntryHash = hashVault(account, sequence)
 
     assert.equal(actualEntryHash, expectedEntryHash)
   })

@@ -101,6 +101,17 @@ export { SignerListSet } from './signerListSet'
 export { TicketCreate } from './ticketCreate'
 export { TrustSetFlagsInterface, TrustSetFlags, TrustSet } from './trustSet'
 export { UNLModify } from './UNLModify'
+export {
+  VaultCreate,
+  VaultCreateFlags,
+  VaultCreateFlagsInterface,
+  VAULT_WITHDRAWAL_POLICY_FIRST_COME_FIRST_SERVE,
+} from './vaultCreate'
+export { VaultSet } from './vaultSet'
+export { VaultDelete } from './vaultDelete'
+export { VaultDeposit } from './vaultDeposit'
+export { VaultWithdraw } from './vaultWithdraw'
+export { VaultClawback } from './vaultClawback'
 export { PermissionedDomainSet } from './permissionedDomainSet'
 export { PermissionedDomainDelete } from './permissionedDomainDelete'
 export { XChainAddAccountCreateAttestation } from './XChainAddAccountCreateAttestation'

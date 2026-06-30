@@ -11,6 +11,7 @@ import {
   IssuedCurrency,
   IssuedCurrencyAmount,
   MPTAmount,
+  MPTCurrency,
   Memo,
   Signer,
   XChainBridge,
@@ -21,6 +22,9 @@ const MEMO_SIZE = 3
 export const MAX_AUTHORIZED_CREDENTIALS = 8
 const MAX_CREDENTIAL_BYTE_LENGTH = 64
 const MAX_CREDENTIAL_TYPE_LENGTH = MAX_CREDENTIAL_BYTE_LENGTH * 2
+
+/** Maximum byte length of a Vault's `Data` field (VaultCreate, VaultSet, and the Vault ledger entry). */
+export const VAULT_DATA_MAX_BYTE_LENGTH = 256
 
 function isMemo(obj: unknown): obj is Memo {
   if (!isRecord(obj)) {
@@ -183,6 +187,49 @@ export function isMPTAmount(input: unknown): input is MPTAmount {
     typeof input.value === 'string' &&
     typeof input.mpt_issuance_id === 'string'
   )
+}
+
+/**
+ * Verify the form and type of an MPTCurrency at runtime.
+ *
+ * @param input - The input to check the form and type of.
+ * @returns Whether the MPTCurrency is properly formed.
+ */
+export function isMPTCurrency(input: unknown): input is MPTCurrency {
+  return (
+    isRecord(input) &&
+    Object.keys(input).length === 1 &&
+    isString(input.mpt_issuance_id)
+  )
+}
+
+/**
+ * Verify the form and type of an Issue at runtime. An Issue identifies an
+ * asset — XRP (`{currency: 'XRP'}`), an issued currency (`{currency, issuer}`),
+ * or an MPT (`{mpt_issuance_id}`).
+ *
+ * @param input - The input to check the form and type of.
+ * @returns Whether the Issue is properly formed.
+ */
+export function isIssue(input: unknown): input is Currency {
+  return isIssuedCurrency(input) || isMPTCurrency(input)
+}
+
+/**
+ * Verify the form and type of an XRPL Number at runtime. A Number field accepts
+ * a JavaScript number or a decimal/scientific-notation string.
+ *
+ * @param input - The input to check the form and type of.
+ * @returns Whether the input is a valid XRPL Number.
+ */
+export function isXRPLNumber(input: unknown): input is number | string {
+  if (typeof input === 'number') {
+    return Number.isFinite(input)
+  }
+  if (typeof input === 'string') {
+    return input.length > 0 && Number.isFinite(Number(input))
+  }
+  return false
 }
 
 /**
